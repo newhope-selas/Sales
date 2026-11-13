@@ -167,6 +167,37 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
+/* ---------- الذكاء الاصطناعي: قراءة رقم العداد من الصورة ---------- */
+const APPCHECK_SITE_KEY = "6LciAx8uAAAAAAqokE6PFU6R47GHcph1pTxFgSws";
+const AI_MODEL = "gemini-3.5-flash-lite";
+const FB = "https://www.gstatic.com/firebasejs/12.15.0/";
+// تحميل مستقل: لو فشل لأي سبب، التطبيق يكمل عادي والقراءة تتسجل "لم تُفحص"
+const aiModelP = (async () => {
+  try {
+    const ac = await import(FB + "firebase-app-check.js");
+    ac.initializeAppCheck(app, { provider: new ac.ReCaptchaEnterpriseProvider(APPCHECK_SITE_KEY), isTokenAutoRefreshEnabled: true });
+    const m = await import(FB + "firebase-ai.js");
+    const ai = m.getAI(app, { backend: new m.GoogleAIBackend() });
+    return m.getGenerativeModel(ai, { model: AI_MODEL, generationConfig: { temperature: 0 } });
+  } catch (e) { console.warn("AI unavailable", e); return null; }
+})();
+const AI_PROMPT = "This is a photo of a vehicle instrument cluster. Read the ODOMETER: the total distance the vehicle has travelled, in km. " +
+  "Ignore the trip meter (Trip A/B), speed, RPM, fuel range, clock and temperature. If the odometer shows a decimal or tenths digit, drop it. " +
+  "Reply with ONLY the whole number using digits 0-9, no spaces, no units. If you cannot read the odometer clearly, reply with the single word NONE.";
+async function readOdometer(b64) {
+  const model = await aiModelP;
+  if (!model) return { status: "unavailable", reading: null };
+  try {
+    const call = model.generateContent([AI_PROMPT, { inlineData: { data: b64, mimeType: "image/jpeg" } }]);
+    const res = await Promise.race([call, new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 25000))]);
+    const txt = (res.response.text() || "").trim();
+    if (/none/i.test(txt)) return { status: "unread", reading: null };
+    const digits = txt.replace(/[,\s]/g, "").match(/\d{1,7}/);
+    return digits ? { status: "read", reading: parseInt(digits[0], 10) } : { status: "unread", reading: null };
+  } catch (e) { console.warn("AI read failed", e); return { status: "unavailable", reading: null }; }
+}
+const AI_LABEL = { match: "مطابق للصورة", mismatch: "مختلف عن الصورة", unread: "الرقم غير واضح في الصورة", unavailable: "لم تُفحص" };
+
 /* ---------- أدوات ---------- */
 const $ = (s, r = document) => r.querySelector(s);
 const appEl = $("#app"), sheetEl = $("#sheet"), camEl = $("#cam");
@@ -349,6 +380,11 @@ camEl.onchange = async () => {
     const c = document.createElement("canvas"); c.width = W; c.height = H;
     const x = c.getContext("2d");
     x.drawImage(img, 0, 0, W, H);
+    // نسخة أصغر بدون ختم للذكاء الاصطناعي، وتبدأ القراءة فورًا أثناء كتابة المندوب للرقم
+    const k2 = Math.min(1, 1024 / Math.max(W, H));
+    const c2 = document.createElement("canvas"); c2.width = Math.round(W * k2); c2.height = Math.round(H * k2);
+    c2.getContext("2d").drawImage(c, 0, 0, c2.width, c2.height);
+    const aiP = readOdometer(c2.toDataURL("image/jpeg", 0.8).split(",")[1]);
     // الختم: الاسم والوقت والموقع مكتوبين على الصورة نفسها
     const now = new Date(), fs = Math.max(18, Math.round(W * 0.034)), pad = Math.round(fs * 0.7);
     const lines = [
@@ -361,7 +397,7 @@ camEl.onchange = async () => {
     x.fillStyle = "#fff"; x.font = `600 ${fs}px "IBM Plex Sans Arabic",system-ui,sans-serif`;
     x.textBaseline = "top"; x.direction = "rtl"; x.textAlign = "right";
     lines.forEach((l, i) => x.fillText(l, W - pad, H - bandH + pad + i * fs * 1.45));
-    Object.assign(pending, { canvas: c, pos, time: timeStr(now), date: dateKey(now) });
+    Object.assign(pending, { canvas: c, pos, aiP, warnedFor: null, time: timeStr(now), date: dateKey(now) });
     renderReview();
   } catch (e) {
     closeSheet(); toast("تعذّر قراءة الصورة. صوّر تاني.");
@@ -395,14 +431,27 @@ async function saveReading() {
     if (reading < today.start.reading) { err.textContent = `رقم النهاية أقل من رقم البداية (${fmt(today.start.reading)}). راجع الرقم.`; return; }
     if (reading - today.start.reading > 1500 && !confirm(`المسافة ${fmt(reading - today.start.reading)} كم في يوم واحد. الرقم صح؟`)) return;
   }
-  b.disabled = true; b.textContent = "جارٍ الحفظ…"; err.textContent = "";
+  b.disabled = true; b.textContent = "جارٍ فحص الصورة والحفظ…"; err.textContent = "";
+  const ai = await p.aiP;
+  let aiStatus = ai.status, aiReading = ai.reading;
+  if (ai.status === "read") {
+    if (Math.abs(ai.reading - reading) <= 1) aiStatus = "match";
+    else {
+      aiStatus = "mismatch";
+      if (p.warnedFor !== reading) {   // تنبيه مرة واحدة؛ لو المندوب متأكد يضغط حفظ تاني وتتسجل "مختلف" عند المدير
+        p.warnedFor = reading;
+        err.textContent = `الرقم المكتوب (${fmt(reading)}) مختلف عن الظاهر في الصورة (${fmt(ai.reading)}). راجع الرقم وصحّحه. لو متأكد من رقمك اضغط «حفظ القراءة» مرة تانية.`;
+        b.disabled = false; b.textContent = "حفظ القراءة"; return;
+      }
+    }
+  }
   try {
     const blob = await new Promise(r => p.canvas.toBlob(r, "image/jpeg", 0.8));
     const path = `odometer/${me.uid}/${p.date}_${p.type}.jpg`;
     await uploadBytes(ref(storage, path), blob, { contentType: "image/jpeg" });
     const row = { uid: me.uid, repName: me.name, repCode: me.code, date: p.date, month: p.date.slice(0, 7), type: p.type,
       reading, time: p.time, lat: p.pos ? p.pos.lat : null, lng: p.pos ? p.pos.lng : null, acc: p.pos ? p.pos.acc : null,
-      photoPath: path, createdAt: serverTimestamp() };
+      photoPath: path, aiStatus, aiReading, createdAt: serverTimestamp() };
     await setDoc(doc(db, "readings", `${me.uid}_${p.date}_${p.type}`), row);
     pending = null; closeSheet(); toast("تم حفظ القراءة");
     await loadRepMonth();
@@ -454,7 +503,8 @@ async function tabDay() {
     const d = by[r.uid] || {}, km = kmOf(d);
     const chips = !d.start ? `<span class="chip no">لم يصوّر</span>`
       : `<span class="chip ok">بداية <span class="num">${esc(d.start.time || "")}</span></span>` +
-        (d.end ? `<span class="chip ok">نهاية <span class="num">${esc(d.end.time || "")}</span></span>` : `<span class="chip wait">في انتظار النهاية</span>`);
+        (d.end ? `<span class="chip ok">نهاية <span class="num">${esc(d.end.time || "")}</span></span>` : `<span class="chip wait">في انتظار النهاية</span>`) +
+        ([d.start, d.end].some(x => x && x.aiStatus === "mismatch") ? `<span class="chip no">رقم مختلف عن الصورة</span>` : "");
     return `<button class="row" data-rep="${esc(r.uid)}"><div><div>${esc(r.name)} <span class="meta num">${esc(r.code)}</span></div><div>${chips}</div></div>
       <div class="km num">${km != null ? fmt(km) + " كم" : ""}</div></button>`;
   }).join("");
@@ -474,6 +524,7 @@ async function repDetail(uid, d) {
     if (!r) return `<div class="detail"><div class="step-h"><strong>${TYPE[type]}</strong></div><span class="chip no">لم يصوّر</span></div>`;
     return `<div class="detail"><div class="step-h"><strong>${TYPE[type]}</strong><span class="time num">${esc(r.time || "")}</span></div>
       ${odo(r.reading, true)}
+      <div style="margin-top:8px"><span class="chip ${r.aiStatus === "match" ? "ok" : r.aiStatus === "mismatch" ? "no" : "wait"}">${AI_LABEL[r.aiStatus] || AI_LABEL.unavailable}</span>${r.aiReading != null && r.aiStatus === "mismatch" ? ` <span class="meta">قراءة الصورة: <span class="num">${fmt(r.aiReading)}</span></span>` : ""}</div>
       <div class="loc hint">الموقع: ${mapLink(r)}</div>
       <img class="shot" style="margin-top:10px" alt="صورة العداد" data-photo="${esc(r.photoPath)}">
       <button class="btn danger" data-del="${type}">حذف القراءة ليعيد المندوب التصوير</button></div>`;
@@ -529,10 +580,10 @@ async function tabMonth() {
   csvBtn.onclick = () => {
     const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const loc = r => r && r.lat != null ? `${r.lat},${r.lng}` : "";
-    const out = [["التاريخ", "المندوب", "الكود", "عداد البداية", "وقت البداية", "عداد النهاية", "وقت النهاية", "الكيلومترات", "موقع البداية", "موقع النهاية"].map(q).join(",")];
+    const out = [["التاريخ", "المندوب", "الكود", "عداد البداية", "وقت البداية", "عداد النهاية", "وقت النهاية", "الكيلومترات", "فحص البداية", "فحص النهاية", "موقع البداية", "موقع النهاية"].map(q).join(",")];
     for (const p of Object.values(per)) for (const k of Object.keys(p.days).sort()) {
       const d = p.days[k], km = kmOf(d);
-      out.push([k, p.name, p.code, d.start?.reading ?? "", d.start?.time ?? "", d.end?.reading ?? "", d.end?.time ?? "", km ?? "", loc(d.start), loc(d.end)].map(q).join(","));
+      out.push([k, p.name, p.code, d.start?.reading ?? "", d.start?.time ?? "", d.end?.reading ?? "", d.end?.time ?? "", km ?? "", d.start ? (AI_LABEL[d.start.aiStatus] || AI_LABEL.unavailable) : "", d.end ? (AI_LABEL[d.end.aiStatus] || AI_LABEL.unavailable) : "", loc(d.start), loc(d.end)].map(q).join(","));
     }
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob(["\uFEFF" + out.join("\r\n")], { type: "text/csv;charset=utf-8" }));
