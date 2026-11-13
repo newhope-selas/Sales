@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>عدادات نيو هوب</title>
+<meta name="theme-color" content="#1E6A3B">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="عدادات نيو هوب">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF1EC; --surface:#FFFFFF; --ink:#16211A; --muted:#5C6B61; --line:#D5DCD4;
+  --green:#1E6A3B; --green-ink:#FFFFFF; --green-soft:#E1EEE5;
+  --amber:#A86E00; --amber-soft:#FBF0D6; --red:#B3352A; --red-soft:#F9E3E0;
+  --drum:#1B1F1D; --digit:#F4F2E8; --last-bg:#F4F2E8; --last:#B3352A;
+  --font:"IBM Plex Sans Arabic",system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    color-scheme:dark;
+    --bg:#0F1512; --surface:#18201B; --ink:#E9EEE9; --muted:#9BA9A0; --line:#2B362F;
+    --green:#3FA866; --green-ink:#07130C; --green-soft:#1B2E22;
+    --amber:#E3A93A; --amber-soft:#33290F; --red:#E8695C; --red-soft:#3A1D1A;
+    --drum:#050706; --digit:#EDEBE0; --last-bg:#EDEBE0; --last:#B3352A;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.55;
+  padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0);-webkit-text-size-adjust:100%}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+[hidden]{display:none!important}
+.wrap{max-width:560px;margin:0 auto;padding:0 16px 40px}
+.num{direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums}
+
+/* top bar */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;
+  background:var(--green);color:var(--green-ink)}
+.top .brand{font-weight:700;font-size:18px;line-height:1.2}
+.top .who{font-size:13px;opacity:.9}
+.top button{background:transparent;border:1px solid currentColor;border-radius:8px;padding:6px 12px;font-size:14px;color:inherit}
+
+/* buttons, inputs */
+.btn{display:block;width:100%;border:0;border-radius:12px;padding:14px 16px;font-weight:600;font-size:17px;
+  background:var(--green);color:var(--green-ink)}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn.danger{background:transparent;color:var(--red);border:1px solid var(--red)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible,input:focus-visible,.tab:focus-visible,.row:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+label{display:block;font-size:14px;font-weight:500;margin:14px 0 6px}
+input[type=text],input[type=password],input[type=tel],input[type=date],input[type=month]{
+  width:100%;padding:13px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);font-size:17px}
+.hint{font-size:13px;color:var(--muted);margin:6px 0 0}
+.err{color:var(--red);font-size:14px;margin:10px 0 0;min-height:1.4em}
+
+/* login */
+.login{padding-top:9vh}
+.login h1{font-size:30px;line-height:1.2;margin:18px 0 4px;font-weight:700}
+.login p.sub{margin:0 0 14px;color:var(--muted)}
+.login .btn{margin-top:20px}
+
+/* odometer: the one loud element */
+.odo{display:inline-flex;direction:ltr;gap:3px;padding:6px;border-radius:10px;background:var(--drum)}
+.odo span{display:grid;place-items:center;width:1.25em;height:1.7em;border-radius:5px;font-weight:700;
+  font-size:26px;color:var(--digit);background:linear-gradient(#2a2f2c,#161a18 48%,#0c0f0d 52%,#1d2220);
+  font-variant-numeric:tabular-nums}
+.odo span:last-child{background:var(--last-bg);color:var(--last)}
+.odo.sm span{font-size:17px}
+
+/* rep home */
+.today{margin:18px 0 10px;font-size:15px;color:var(--muted)}
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.step{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px}
+.step-h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+.step-h strong{font-size:19px}
+.step-h .time{font-size:14px;color:var(--muted)}
+.step .loc{font-size:13px;color:var(--muted);margin-top:10px}
+.step .loc a{color:var(--green)}
+.totals{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0 26px}
+.totals div{border-inline-start:4px solid var(--green);padding:4px 12px}
+.totals b{display:block;font-size:30px;line-height:1.15;font-weight:700}
+.totals span{font-size:13px;color:var(--muted)}
+h2{font-size:17px;margin:0 0 8px;font-weight:600}
+.list{background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:12px 14px;
+  border:0;border-bottom:1px solid var(--line);background:transparent;text-align:start}
+.row:last-child{border-bottom:0}
+.row .meta{font-size:13px;color:var(--muted)}
+.row .km{font-weight:700;white-space:nowrap}
+.empty{padding:22px 14px;color:var(--muted);text-align:center}
+
+/* chips */
+.chip{display:inline-block;font-size:12px;font-weight:600;padding:2px 9px;border-radius:999px;margin-inline-end:4px}
+.chip.ok{background:var(--green-soft);color:var(--green)}
+.chip.wait{background:var(--amber-soft);color:var(--amber)}
+.chip.no{background:var(--red-soft);color:var(--red)}
+
+/* manager */
+.tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.tab{flex:1;border:0;background:transparent;padding:13px 6px;font-weight:600;color:var(--muted);border-bottom:3px solid transparent}
+.tab[aria-selected=true]{color:var(--green);border-bottom-color:var(--green)}
+.bar{display:flex;gap:10px;align-items:end;margin:16px 0}
+.bar > div{flex:1}
+.bar label{margin-top:0}
+.bar .btn{width:auto;padding:13px 16px;font-size:15px;white-space:nowrap}
+.counts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 16px}
+.counts div{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center}
+.counts b{display:block;font-size:24px;line-height:1.2}
+.counts span{font-size:12px;color:var(--muted)}
+.counts .bad b{color:var(--red)}
+.form{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:4px 16px 16px;margin:16px 0}
+.form .btn{margin-top:16px}
+
+/* sheet */
+.sheet{position:fixed;inset:0;z-index:20;background:var(--bg);overflow:auto;
+  padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
+.sheet .wrap{padding-top:16px}
+.sheet h2{font-size:21px;margin-bottom:12px}
+.shot{width:100%;border-radius:12px;display:block;background:#000}
+.sheet .actions{display:grid;gap:10px;margin-top:18px}
+.reading{font-size:28px!important;font-weight:700;letter-spacing:.08em;text-align:center;direction:ltr}
+.detail{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}
+.detail .step-h{margin-bottom:8px}
+.detail .btn{margin-top:12px;padding:10px;font-size:15px}
+
+.toast{position:fixed;inset-inline:16px;bottom:calc(20px + env(safe-area-inset-bottom,0));z-index:40;
+  background:var(--ink);color:var(--bg);padding:12px 16px;border-radius:12px;text-align:center;font-weight:500}
+.boot{display:grid;place-items:center;height:100%;color:var(--muted)}
+</style>
+</head>
+<body>
+<div id="app"><div class="boot">جارٍ التحميل…</div></div>
+<div id="sheet" class="sheet" hidden></div>
+<div id="toast" class="toast" role="status" hidden></div>
+<input id="cam" type="file" accept="image/*" capture="environment" hidden>
+
+<script type="module">
+import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+import { getAuth, initializeAuth, inMemoryPersistence, onAuthStateChanged, signInWithEmailAndPassword,
+         createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, getDocs,
+         serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-storage.js";
+
+/* ---------- الإعدادات ---------- */
+const firebaseConfig = {
+  apiKey: "AIzaSyD-PSrE0msYyE4_bafcczMyIyQplpwd2I4",
+  authDomain: "newhope-salas.firebaseapp.com",
+  projectId: "newhope-salas",
+  storageBucket: "newhope-salas.firebasestorage.app",
+  messagingSenderId: "287750358616",
+  appId: "1:287750358616:web:d0e3d03caa39d0235d6c2d",
+  measurementId: "G-2WR3S47V3J"
+};
+const MANAGER_EMAIL = "ehabshafie37@gmail.com";
+const REP_DOMAIN = "@rep.newhope-salas.app";   // المندوب يدخل بالكود فقط، والتطبيق يكمّل الباقي
+const TZ = "Africa/Cairo";
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const storage = getStorage(app);
+
+/* ---------- أدوات ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const appEl = $("#app"), sheetEl = $("#sheet"), camEl = $("#cam");
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const dateKey = (d = new Date()) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(d);
+const monthKey = (d = new Date()) => dateKey(d).slice(0, 7);
+const timeStr = d => new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
+const longDate = key => new Intl.DateTimeFormat("ar-EG", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(new Date(key + "T12:00:00Z"));
+const shortDate = key => new Intl.DateTimeFormat("ar-EG", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" }).format(new Date(key + "T12:00:00Z"));
+const fmt = n => Number(n).toLocaleString("en-US");
+const odo = (n, sm) => `<span class="odo${sm ? " sm" : ""}" aria-label="${n}">${String(n).padStart(6, "0").split("").map(d => `<span>${d}</span>`).join("")}</span>`;
+const mapLink = r => r.lat != null ? `<a class="num" href="https://maps.google.com/?q=${r.lat},${r.lng}" target="_blank" rel="noopener">${r.lat.toFixed(5)}, ${r.lng.toFixed(5)}</a>` : "بدون موقع";
+const TYPE = { start: "بداية اليوم", end: "نهاية اليوم" };
+
+let toastT;
+function toast(msg) {
+  const t = $("#toast"); t.textContent = msg; t.hidden = false;
+  clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 3500);
+}
+function authMsg(e) {
+  const c = e?.code || "";
+  if (c.includes("invalid-credential") || c.includes("wrong-password") || c.includes("user-not-found") || c.includes("invalid-email")) return "الكود أو كلمة السر غير صحيحة.";
+  if (c.includes("email-already-in-use")) return "الكود ده مستخدم قبل كده. اختار كود تاني.";
+  if (c.includes("weak-password")) return "كلمة السر لازم تكون 6 حروف أو أرقام على الأقل.";
+  if (c.includes("too-many-requests")) return "محاولات كتير. استنى دقيقة وجرّب تاني.";
+  if (c.includes("network")) return "مفيش اتصال بالإنترنت. تأكد من الشبكة وجرّب تاني.";
+  if (c.includes("permission-denied") || c.includes("unauthorized")) return "مش مسموح بالعملية دي. لو القراءة متسجلة قبل كده، كلّم المدير.";
+  return "حصل خطأ: " + (e?.message || c || "غير معروف");
+}
+function closeSheet() { sheetEl.hidden = true; sheetEl.innerHTML = ""; document.body.style.overflow = ""; }
+function openSheet(html) { sheetEl.innerHTML = `<div class="wrap">${html}</div>`; sheetEl.hidden = false; sheetEl.scrollTop = 0; document.body.style.overflow = "hidden"; }
+
+/* ---------- أيقونة التطبيق ---------- */
+(function icon() {
+  try {
+    const c = document.createElement("canvas"); c.width = c.height = 512;
+    const x = c.getContext("2d");
+    x.fillStyle = "#1E6A3B"; x.fillRect(0, 0, 512, 512);
+    x.fillStyle = "#1B1F1D"; x.fillRect(64, 196, 384, 120);
+    x.fillStyle = "#F4F2E8"; x.font = "700 92px system-ui,sans-serif"; x.textAlign = "center"; x.textBaseline = "middle";
+    x.fillText("0 4 2 7", 232, 260);
+    x.fillStyle = "#F4F2E8"; x.fillRect(376, 208, 60, 96);
+    x.fillStyle = "#B3352A"; x.fillText("5", 406, 260);
+    const png = c.toDataURL("image/png");
+    const l = document.createElement("link"); l.rel = "apple-touch-icon"; l.href = png; document.head.append(l);
+    const man = { name: "عدادات نيو هوب", short_name: "العدادات", display: "standalone", start_url: location.href.split("#")[0],
+      background_color: "#EEF1EC", theme_color: "#1E6A3B", lang: "ar", dir: "rtl", icons: [{ src: png, sizes: "512x512", type: "image/png" }] };
+    const m = document.createElement("link"); m.rel = "manifest";
+    m.href = URL.createObjectURL(new Blob([JSON.stringify(man)], { type: "application/manifest+json" }));
+    document.head.append(m);
+  } catch (e) {}
+})();
+
+/* ---------- الدخول ---------- */
+function renderLogin() {
+  appEl.innerHTML = `
+  <div class="wrap login">
+    ${odo(42075)}
+    <h1>عدادات نيو هوب</h1>
+    <p class="sub">سجّل عداد عربيتك أول اليوم وآخره.</p>
+    <label for="lg-id">الكود</label>
+    <input id="lg-id" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" dir="ltr">
+    <label for="lg-pw">كلمة السر</label>
+    <input id="lg-pw" type="password" autocomplete="current-password" dir="ltr">
+    <p class="err" id="lg-err"></p>
+    <button class="btn" id="lg-go">دخول</button>
+    <p class="hint" style="margin-top:22px">لتثبيت التطبيق على الموبايل: اضغط زر المشاركة أو القائمة في المتصفح، ثم «إضافة إلى الشاشة الرئيسية».</p>
+  </div>`;
+  const go = async () => {
+    const id = $("#lg-id").value.trim().toLowerCase(), pw = $("#lg-pw").value;
+    const err = $("#lg-err"), b = $("#lg-go");
+    if (!id || !pw) { err.textContent = "اكتب الكود وكلمة السر."; return; }
+    b.disabled = true; b.textContent = "جارٍ الدخول…"; err.textContent = "";
+    try { await signInWithEmailAndPassword(auth, id.includes("@") ? id : id + REP_DOMAIN, pw); }
+    catch (e) { err.textContent = authMsg(e); b.disabled = false; b.textContent = "دخول"; }
+  };
+  $("#lg-go").onclick = go;
+  $("#lg-pw").onkeydown = e => { if (e.key === "Enter") go(); };
+}
+
+/* ---------- المندوب ---------- */
+let me = null;          // { uid, name, code }
+let monthRows = [];     // قراءات الشهر الحالي للمندوب
+let pending = null;     // { type, canvas, pos }
+
+async function startRep(user) {
+  appEl.innerHTML = `<div class="boot">جارٍ التحميل…</div>`;
+  let snap;
+  try { snap = await getDoc(doc(db, "reps", user.uid)); }
+  catch (e) { snap = null; }
+  if (!snap || !snap.exists() || snap.data().active === false) {
+    appEl.innerHTML = `<div class="wrap login"><h1>الحساب غير مفعّل</h1>
+      <p class="sub">الحساب ده مش متاح حاليًا. كلّم مدير المبيعات عشان يفعّله.</p>
+      <button class="btn ghost" id="out">خروج</button></div>`;
+    $("#out").onclick = () => signOut(auth);
+    return;
+  }
+  me = { uid: user.uid, ...snap.data() };
+  await loadRepMonth();
+}
+async function loadRepMonth() {
+  try {
+    const q = query(collection(db, "readings"), where("uid", "==", me.uid), where("month", "==", monthKey()));
+    monthRows = (await getDocs(q)).docs.map(d => d.data());
+  } catch (e) { monthRows = []; toast(authMsg(e)); }
+  renderRep();
+}
+function byDay(rows) {
+  const days = {};
+  for (const r of rows) (days[r.date] ||= {})[r.type] = r;
+  return days;
+}
+const kmOf = d => d && d.start && d.end && d.end.reading >= d.start.reading ? d.end.reading - d.start.reading : null;
+
+function renderRep() {
+  const today = dateKey(), days = byDay(monthRows), t = days[today] || {};
+  const kmToday = kmOf(t);
+  const kmMonth = Object.values(days).reduce((s, d) => s + (kmOf(d) || 0), 0);
+  const step = (type, locked) => {
+    const r = t[type];
+    return `<li class="step">
+      <div class="step-h"><strong>${TYPE[type]}</strong>${r ? `<span class="time num">${esc(r.time || "")}</span>` : ""}</div>
+      ${r ? `${odo(r.reading)}<div class="loc">الموقع: ${mapLink(r)}</div>`
+          : `<button class="btn" data-shoot="${type}" ${locked ? "disabled" : ""}>صوّر العداد</button>
+             ${locked ? `<p class="hint">صوّر عداد بداية اليوم الأول.</p>` : ""}`}
+    </li>`;
+  };
+  const hist = Object.keys(days).sort().reverse().map(k => {
+    const d = days[k], km = kmOf(d);
+    return `<div class="row"><div><div>${shortDate(k)}</div>
+      <div class="meta num">${d.start ? fmt(d.start.reading) : "—"} ← ${d.end ? fmt(d.end.reading) : "—"}</div></div>
+      <div class="km num">${km != null ? fmt(km) + " كم" : "—"}</div></div>`;
+  }).join("");
+  appEl.innerHTML = `
+  <header class="top"><div><div class="brand">عدادات نيو هوب</div><div class="who">${esc(me.name)}</div></div><button id="out">خروج</button></header>
+  <div class="wrap">
+    <p class="today">${longDate(today)}</p>
+    <ol class="steps">${step("start", false)}${step("end", !t.start)}</ol>
+    <div class="totals">
+      <div><b class="num">${kmToday != null ? fmt(kmToday) : "—"}</b><span>كيلومترات اليوم</span></div>
+      <div><b class="num">${fmt(kmMonth)}</b><span>كيلومترات الشهر</span></div>
+    </div>
+    <h2>أيام الشهر</h2>
+    <div class="list">${hist || `<div class="empty">لسه مفيش قراءات الشهر ده. ابدأ بتصوير عداد بداية اليوم.</div>`}</div>
+  </div>`;
+  $("#out").onclick = () => signOut(auth);
+  appEl.querySelectorAll("[data-shoot]").forEach(b => b.onclick = () => shoot(b.dataset.shoot));
+}
+
+function getPos() {
+  return new Promise(res => {
+    if (!navigator.geolocation) return res(null);
+    navigator.geolocation.getCurrentPosition(
+      p => res({ lat: p.coords.latitude, lng: p.coords.longitude, acc: Math.round(p.coords.accuracy) }),
+      () => res(null), { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 });
+  });
+}
+function shoot(type) {
+  pending = { type, posP: getPos() };   // نبدأ تحديد الموقع فورًا أثناء التصوير
+  camEl.value = ""; camEl.click();
+}
+async function loadImage(file) {
+  if ("createImageBitmap" in window) {
+    try { return await createImageBitmap(file, { imageOrientation: "from-image" }); } catch (e) {}
+  }
+  return await new Promise((res, rej) => {
+    const img = new Image(); img.onload = () => res(img); img.onerror = rej; img.src = URL.createObjectURL(file);
+  });
+}
+camEl.onchange = async () => {
+  const file = camEl.files && camEl.files[0];
+  if (!file || !pending) return;
+  openSheet(`<div class="boot" style="height:60vh">جارٍ تجهيز الصورة وتحديد الموقع…</div>`);
+  try {
+    const img = await loadImage(file);
+    const pos = await pending.posP;
+    const w0 = img.width || img.naturalWidth, h0 = img.height || img.naturalHeight;
+    const k = Math.min(1, 1400 / Math.max(w0, h0));
+    const W = Math.round(w0 * k), H = Math.round(h0 * k);
+    const c = document.createElement("canvas"); c.width = W; c.height = H;
+    const x = c.getContext("2d");
+    x.drawImage(img, 0, 0, W, H);
+    // الختم: الاسم والوقت والموقع مكتوبين على الصورة نفسها
+    const now = new Date(), fs = Math.max(18, Math.round(W * 0.034)), pad = Math.round(fs * 0.7);
+    const lines = [
+      `${me.name} (${me.code}) | ${TYPE[pending.type]}`,
+      `${dateKey(now)}  ${timeStr(now)}`,
+      pos ? `الموقع: ${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)} (±${pos.acc}م)` : "الموقع: غير متاح"
+    ];
+    const bandH = pad * 2 + lines.length * fs * 1.45;
+    x.fillStyle = "rgba(0,0,0,.62)"; x.fillRect(0, H - bandH, W, bandH);
+    x.fillStyle = "#fff"; x.font = `600 ${fs}px "IBM Plex Sans Arabic",system-ui,sans-serif`;
+    x.textBaseline = "top"; x.direction = "rtl"; x.textAlign = "right";
+    lines.forEach((l, i) => x.fillText(l, W - pad, H - bandH + pad + i * fs * 1.45));
+    Object.assign(pending, { canvas: c, pos, time: timeStr(now), date: dateKey(now) });
+    renderReview();
+  } catch (e) {
+    closeSheet(); toast("تعذّر قراءة الصورة. صوّر تاني.");
+  }
+};
+function renderReview() {
+  const p = pending;
+  openSheet(`
+    <h2>${TYPE[p.type]}</h2>
+    <img class="shot" alt="صورة العداد" src="${p.canvas.toDataURL("image/jpeg", 0.6)}">
+    ${p.pos ? "" : `<p class="err">الموقع غير متاح. فعّل خدمة الموقع واسمح للمتصفح، ثم أعد التصوير. لو حفظت كده، القراءة هتتسجل «بدون موقع».</p>`}
+    <label for="rd">اكتب رقم العداد زي ما هو في الصورة</label>
+    <input id="rd" class="reading" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="7" autocomplete="off" placeholder="000000">
+    <p class="err" id="rd-err"></p>
+    <div class="actions">
+      <button class="btn" id="rd-save">حفظ القراءة</button>
+      <button class="btn ghost" id="rd-again">إعادة التصوير</button>
+      <button class="btn ghost" id="rd-cancel">إلغاء</button>
+    </div>`);
+  $("#rd-cancel").onclick = () => { pending = null; closeSheet(); };
+  $("#rd-again").onclick = () => { const t = p.type; closeSheet(); shoot(t); };
+  $("#rd-save").onclick = saveReading;
+}
+async function saveReading() {
+  const p = pending, err = $("#rd-err"), b = $("#rd-save");
+  const raw = $("#rd").value.replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/\D/g, "");
+  if (!raw) { err.textContent = "اكتب رقم العداد."; return; }
+  const reading = parseInt(raw, 10);
+  const today = byDay(monthRows)[p.date] || {};
+  if (p.type === "end" && today.start) {
+    if (reading < today.start.reading) { err.textContent = `رقم النهاية أقل من رقم البداية (${fmt(today.start.reading)}). راجع الرقم.`; return; }
+    if (reading - today.start.reading > 1500 && !confirm(`المسافة ${fmt(reading - today.start.reading)} كم في يوم واحد. الرقم صح؟`)) return;
+  }
+  b.disabled = true; b.textContent = "جارٍ الحفظ…"; err.textContent = "";
+  try {
+    const blob = await new Promise(r => p.canvas.toBlob(r, "image/jpeg", 0.8));
+    const path = `odometer/${me.uid}/${p.date}_${p.type}.jpg`;
+    await uploadBytes(ref(storage, path), blob, { contentType: "image/jpeg" });
+    const row = { uid: me.uid, repName: me.name, repCode: me.code, date: p.date, month: p.date.slice(0, 7), type: p.type,
+      reading, time: p.time, lat: p.pos ? p.pos.lat : null, lng: p.pos ? p.pos.lng : null, acc: p.pos ? p.pos.acc : null,
+      photoPath: path, createdAt: serverTimestamp() };
+    await setDoc(doc(db, "readings", `${me.uid}_${p.date}_${p.type}`), row);
+    pending = null; closeSheet(); toast("تم حفظ القراءة");
+    await loadRepMonth();
+  } catch (e) {
+    err.textContent = authMsg(e); b.disabled = false; b.textContent = "حفظ القراءة";
+  }
+}
+
+/* ---------- المدير ---------- */
+let mTab = "day", mReps = [], mDay = dateKey(), mMonth = monthKey(), mRows = [];
+
+async function startMgr() {
+  appEl.innerHTML = `
+  <header class="top"><div><div class="brand">عدادات نيو هوب</div><div class="who">لوحة المدير</div></div><button id="out">خروج</button></header>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" data-tab="day">اليوم</button>
+    <button class="tab" role="tab" data-tab="month">الشهر</button>
+    <button class="tab" role="tab" data-tab="reps">المندوبين</button>
+  </div>
+  <div class="wrap" id="mbody"></div>`;
+  $("#out").onclick = () => signOut(auth);
+  appEl.querySelectorAll(".tab").forEach(t => t.onclick = () => { mTab = t.dataset.tab; showTab(); });
+  await loadReps();
+  showTab();
+}
+async function loadReps() {
+  try {
+    mReps = (await getDocs(collection(db, "reps"))).docs.map(d => ({ uid: d.id, ...d.data() }))
+      .sort((a, b) => String(a.name).localeCompare(String(b.name), "ar"));
+  } catch (e) { mReps = []; toast(authMsg(e)); }
+}
+function showTab() {
+  appEl.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", t.dataset.tab === mTab));
+  ({ day: tabDay, month: tabMonth, reps: tabReps })[mTab]();
+}
+
+async function tabDay() {
+  const body = $("#mbody");
+  body.innerHTML = `<div class="bar"><div><label for="d-in">اليوم</label><input id="d-in" type="date" value="${mDay}" max="${dateKey()}"></div></div>
+    <div id="d-out"><div class="empty">جارٍ التحميل…</div></div>`;
+  $("#d-in").onchange = e => { if (e.target.value) { mDay = e.target.value; tabDay(); } };
+  try { mRows = (await getDocs(query(collection(db, "readings"), where("date", "==", mDay)))).docs.map(d => d.data()); }
+  catch (e) { $("#d-out").innerHTML = `<div class="empty">${esc(authMsg(e))}</div>`; return; }
+  const by = {}; for (const r of mRows) (by[r.uid] ||= {})[r.type] = r;
+  const act = mReps.filter(r => r.active !== false || by[r.uid]);
+  const nStart = act.filter(r => by[r.uid]?.start).length, nEnd = act.filter(r => by[r.uid]?.end).length;
+  const rank = r => by[r.uid]?.end ? 2 : by[r.uid]?.start ? 1 : 0;
+  const rows = [...act].sort((a, b) => rank(a) - rank(b)).map(r => {
+    const d = by[r.uid] || {}, km = kmOf(d);
+    const chips = !d.start ? `<span class="chip no">لم يصوّر</span>`
+      : `<span class="chip ok">بداية <span class="num">${esc(d.start.time || "")}</span></span>` +
+        (d.end ? `<span class="chip ok">نهاية <span class="num">${esc(d.end.time || "")}</span></span>` : `<span class="chip wait">في انتظار النهاية</span>`);
+    return `<button class="row" data-rep="${esc(r.uid)}"><div><div>${esc(r.name)} <span class="meta num">${esc(r.code)}</span></div><div>${chips}</div></div>
+      <div class="km num">${km != null ? fmt(km) + " كم" : ""}</div></button>`;
+  }).join("");
+  $("#d-out").innerHTML = `
+    <div class="counts">
+      <div><b class="num">${nStart}/${act.length}</b><span>صوّروا البداية</span></div>
+      <div><b class="num">${nEnd}/${act.length}</b><span>صوّروا النهاية</span></div>
+      <div class="bad"><b class="num">${act.length - nStart}</b><span>لم يصوّروا</span></div>
+    </div>
+    <div class="list">${rows || `<div class="empty">لسه مفيش مندوبين. أضف أول مندوب من تبويب «المندوبين».</div>`}</div>`;
+  body.querySelectorAll("[data-rep]").forEach(b => b.onclick = () => repDetail(b.dataset.rep, by[b.dataset.rep] || {}));
+}
+async function repDetail(uid, d) {
+  const rep = mReps.find(r => r.uid === uid) || {};
+  const block = type => {
+    const r = d[type];
+    if (!r) return `<div class="detail"><div class="step-h"><strong>${TYPE[type]}</strong></div><span class="chip no">لم يصوّر</span></div>`;
+    return `<div class="detail"><div class="step-h"><strong>${TYPE[type]}</strong><span class="time num">${esc(r.time || "")}</span></div>
+      ${odo(r.reading, true)}
+      <div class="loc hint">الموقع: ${mapLink(r)}</div>
+      <img class="shot" style="margin-top:10px" alt="صورة العداد" data-photo="${esc(r.photoPath)}">
+      <button class="btn danger" data-del="${type}">حذف القراءة ليعيد المندوب التصوير</button></div>`;
+  };
+  const km = kmOf(d);
+  openSheet(`<h2>${esc(rep.name || "")} <span class="meta num">${esc(rep.code || "")}</span></h2>
+    <p class="today" style="margin-top:0">${longDate(mDay)}${km != null ? ` — <b class="num">${fmt(km)} كم</b>` : ""}</p>
+    ${block("start")}${block("end")}
+    <div class="actions"><button class="btn ghost" id="dt-close">رجوع</button></div>`);
+  $("#dt-close").onclick = closeSheet;
+  sheetEl.querySelectorAll("[data-photo]").forEach(async im => {
+    try { im.src = await getDownloadURL(ref(storage, im.dataset.photo)); } catch (e) { im.alt = "تعذّر تحميل الصورة"; }
+  });
+  sheetEl.querySelectorAll("[data-del]").forEach(b => b.onclick = async () => {
+    const r = d[b.dataset.del];
+    if (!confirm(`حذف قراءة ${TYPE[r.type]} للمندوب ${rep.name}؟`)) return;
+    b.disabled = true;
+    try {
+      await deleteDoc(doc(db, "readings", `${uid}_${r.date}_${r.type}`));
+      try { await deleteObject(ref(storage, r.photoPath)); } catch (e) {}
+      closeSheet(); toast("تم حذف القراءة"); tabDay();
+    } catch (e) { toast(authMsg(e)); b.disabled = false; }
+  });
+}
+
+async function tabMonth() {
+  const body = $("#mbody");
+  body.innerHTML = `<div class="bar"><div><label for="m-in">الشهر</label><input id="m-in" type="month" value="${mMonth}" max="${monthKey()}"></div>
+      <button class="btn ghost" id="m-csv" disabled>تنزيل Excel</button></div>
+    <div id="m-out"><div class="empty">جارٍ التحميل…</div></div>`;
+  $("#m-in").onchange = e => { if (e.target.value) { mMonth = e.target.value; tabMonth(); } };
+  let rows;
+  try { rows = (await getDocs(query(collection(db, "readings"), where("month", "==", mMonth)))).docs.map(d => d.data()); }
+  catch (e) { $("#m-out").innerHTML = `<div class="empty">${esc(authMsg(e))}</div>`; return; }
+  const per = {}; // uid -> { name, code, days: {date:{start,end}} }
+  for (const r of rows) {
+    const p = per[r.uid] ||= { name: r.repName, code: r.repCode, days: {} };
+    (p.days[r.date] ||= {})[r.type] = r;
+  }
+  for (const r of mReps) if (r.active !== false && !per[r.uid]) per[r.uid] = { name: r.name, code: r.code, days: {} };
+  const list = Object.values(per).map(p => {
+    const ds = Object.values(p.days);
+    return { ...p, km: ds.reduce((s, d) => s + (kmOf(d) || 0), 0), full: ds.filter(d => kmOf(d) != null).length, any: ds.length };
+  }).sort((a, b) => b.km - a.km);
+  const total = list.reduce((s, p) => s + p.km, 0);
+  $("#m-out").innerHTML = `
+    <div class="totals"><div><b class="num">${fmt(total)}</b><span>إجمالي كيلومترات الفريق</span></div>
+      <div><b class="num">${list.length}</b><span>مندوب</span></div></div>
+    <div class="list">${list.map(p => `<div class="row"><div><div>${esc(p.name)} <span class="meta num">${esc(p.code)}</span></div>
+      <div class="meta">أيام مكتملة: <span class="num">${p.full}</span>${p.any > p.full ? ` — ناقصة: <span class="num">${p.any - p.full}</span>` : ""}</div></div>
+      <div class="km num">${fmt(p.km)} كم</div></div>`).join("") || `<div class="empty">مفيش قراءات في الشهر ده.</div>`}</div>`;
+  const csvBtn = $("#m-csv"); csvBtn.disabled = !rows.length;
+  csvBtn.onclick = () => {
+    const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const loc = r => r && r.lat != null ? `${r.lat},${r.lng}` : "";
+    const out = [["التاريخ", "المندوب", "الكود", "عداد البداية", "وقت البداية", "عداد النهاية", "وقت النهاية", "الكيلومترات", "موقع البداية", "موقع النهاية"].map(q).join(",")];
+    for (const p of Object.values(per)) for (const k of Object.keys(p.days).sort()) {
+      const d = p.days[k], km = kmOf(d);
+      out.push([k, p.name, p.code, d.start?.reading ?? "", d.start?.time ?? "", d.end?.reading ?? "", d.end?.time ?? "", km ?? "", loc(d.start), loc(d.end)].map(q).join(","));
+    }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob(["\uFEFF" + out.join("\r\n")], { type: "text/csv;charset=utf-8" }));
+    a.download = `odometer-${mMonth}.csv`; document.body.append(a); a.click(); a.remove();
+  };
+}
+
+function tabReps() {
+  const body = $("#mbody");
+  body.innerHTML = `
+    <div class="form">
+      <label for="r-name">اسم المندوب</label><input id="r-name" type="text" autocomplete="off">
+      <label for="r-code">الكود (للدخول)</label><input id="r-code" type="text" dir="ltr" autocapitalize="none" autocomplete="off" spellcheck="false">
+      <p class="hint">حروف إنجليزية أو أرقام بدون مسافات، مثل رقم الموبايل أو كود الموظف.</p>
+      <label for="r-pw">كلمة السر</label><input id="r-pw" type="text" dir="ltr" autocomplete="off" autocapitalize="none">
+      <p class="err" id="r-err"></p>
+      <button class="btn" id="r-add">إضافة المندوب</button>
+    </div>
+    <h2>المندوبين (<span class="num">${mReps.length}</span>)</h2>
+    <div class="list">${mReps.map(r => `<div class="row"><div><div>${esc(r.name)}</div><div class="meta num">${esc(r.code)}</div></div>
+      <button class="btn ghost" style="width:auto;padding:8px 12px;font-size:14px" data-toggle="${esc(r.uid)}">${r.active === false ? "تفعيل" : "إيقاف"}</button></div>`).join("")
+      || `<div class="empty">لسه مفيش مندوبين. أضف أول مندوب من النموذج فوق.</div>`}</div>
+    <p class="hint" style="margin-top:12px">المندوب الموقوف لا يقدر يسجّل قراءات. لتغيير كلمة سر مندوب: أوقف حسابه وأضفه بكود جديد.</p>`;
+  $("#r-add").onclick = addRep;
+  body.querySelectorAll("[data-toggle]").forEach(b => b.onclick = async () => {
+    const r = mReps.find(x => x.uid === b.dataset.toggle); b.disabled = true;
+    try { await updateDoc(doc(db, "reps", r.uid), { active: r.active === false }); r.active = r.active === false; tabReps(); }
+    catch (e) { toast(authMsg(e)); b.disabled = false; }
+  });
+}
+async function addRep() {
+  const name = $("#r-name").value.trim(), code = $("#r-code").value.trim().toLowerCase(), pw = $("#r-pw").value;
+  const err = $("#r-err"), b = $("#r-add");
+  if (!name) { err.textContent = "اكتب اسم المندوب."; return; }
+  if (!/^[a-z0-9._-]{2,30}$/.test(code)) { err.textContent = "الكود: حروف إنجليزية أو أرقام فقط، بدون مسافات."; return; }
+  if (pw.length < 6) { err.textContent = "كلمة السر لازم تكون 6 حروف أو أرقام على الأقل."; return; }
+  b.disabled = true; b.textContent = "جارٍ الإضافة…"; err.textContent = "";
+  let sec;
+  try {
+    // تطبيق ثانوي مؤقت حتى لا يخرج المدير من حسابه أثناء إنشاء حساب المندوب
+    sec = initializeApp(firebaseConfig, "sec-" + Date.now());
+    const secAuth = initializeAuth(sec, { persistence: inMemoryPersistence });
+    const cred = await createUserWithEmailAndPassword(secAuth, code + REP_DOMAIN, pw);
+    await setDoc(doc(db, "reps", cred.user.uid), { name, code, active: true, createdAt: serverTimestamp() });
+    await signOut(secAuth);
+    toast(`تمت إضافة ${name}`);
+    await loadReps(); tabReps();
+  } catch (e) {
+    err.textContent = authMsg(e); b.disabled = false; b.textContent = "إضافة المندوب";
+  } finally {
+    if (sec) { try { await deleteApp(sec); } catch (e) {} }
+  }
+}
+
+/* ---------- التشغيل ---------- */
+onAuthStateChanged(auth, user => {
+  closeSheet(); me = null; pending = null;
+  if (!user) return renderLogin();
+  if ((user.email || "").toLowerCase() === MANAGER_EMAIL) return startMgr();
+  startRep(user);
+});
+</script>
+</body>
+</html>
