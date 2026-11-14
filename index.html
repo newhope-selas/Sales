@@ -473,6 +473,13 @@ async function saveReading() {
   if (ai.status === "read" && ai.reading !== reading)
     return reject(`الرقم اللي كتبته (${fmt(reading)}) مش مطابق لرقم العداد في الصورة. راجع الصورة وصحّح الرقم، أو اضغط «إعادة التصوير».`);
   const aiStatus = ai.status === "read" ? "match" : "unavailable", aiReading = ai.reading;
+  if (aiStatus === "unavailable") {   // ختم أحمر على الصورة نفسها: القراءة لم تُفحص
+    const x = p.canvas.getContext("2d"), W = p.canvas.width, fs = Math.max(18, Math.round(W * 0.034)), pd = Math.round(fs * 0.6);
+    x.fillStyle = "rgba(179,53,42,.9)"; x.fillRect(0, 0, W, fs * 1.3 + pd * 2);
+    x.fillStyle = "#fff"; x.font = `700 ${fs}px "IBM Plex Sans Arabic",system-ui,sans-serif`;
+    x.textBaseline = "top"; x.direction = "rtl"; x.textAlign = "right";
+    x.fillText("لم تُفحص بالذكاء الاصطناعي", W - pd, pd);
+  }
   try {
     const blob = await new Promise(r => p.canvas.toBlob(r, "image/jpeg", 0.8));
     const path = `odometer/${me.uid}/${p.date}_${p.type}.jpg`;
@@ -481,7 +488,7 @@ async function saveReading() {
       reading, time: p.time, lat: p.pos ? p.pos.lat : null, lng: p.pos ? p.pos.lng : null, acc: p.pos ? p.pos.acc : null,
       photoPath: path, aiStatus, aiReading, createdAt: serverTimestamp() };
     await setDoc(doc(db, "readings", `${me.uid}_${p.date}_${p.type}`), row);
-    pending = null; closeSheet(); toast("تم حفظ القراءة");
+    pending = null; closeSheet(); toast(aiStatus === "match" ? "تم حفظ القراءة" : "تم حفظ القراءة (لم تُفحص بالذكاء الاصطناعي)");
     await loadRepMonth();
   } catch (e) {
     err.textContent = authMsg(e); b.disabled = false; b.textContent = "حفظ القراءة";
