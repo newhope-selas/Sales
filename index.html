@@ -123,6 +123,7 @@ h2{font-size:17px;margin:0 0 8px;font-weight:600}
 .sheet .wrap{padding-top:16px}
 .sheet h2{font-size:21px;margin-bottom:12px}
 .shot{width:100%;border-radius:12px;display:block;background:#000}
+video.shot{min-height:240px;max-height:62vh;object-fit:contain}
 .sheet .actions{display:grid;gap:10px;margin-top:18px}
 .reading{font-size:28px!important;font-weight:700;letter-spacing:.08em;text-align:center;direction:ltr}
 .detail{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}
@@ -138,7 +139,6 @@ h2{font-size:17px;margin:0 0 8px;font-weight:600}
 <div id="app"><div class="boot">جارٍ التحميل…</div></div>
 <div id="sheet" class="sheet" hidden></div>
 <div id="toast" class="toast" role="status" hidden></div>
-<input id="cam" type="file" accept="image/*" capture="environment" hidden>
 
 <script type="module">
 import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
@@ -196,11 +196,13 @@ async function readOdometer(b64) {
     return digits ? { status: "read", reading: parseInt(digits[0], 10) } : { status: "unread", reading: null };
   } catch (e) { console.warn("AI read failed", e); return { status: "unavailable", reading: null }; }
 }
+let camStream = null;
+function stopCam() { if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; } }
 const AI_LABEL = { match: "مطابق للصورة", mismatch: "مختلف عن الصورة", unread: "الرقم غير واضح في الصورة", unavailable: "لم تُفحص" };
 
 /* ---------- أدوات ---------- */
 const $ = (s, r = document) => r.querySelector(s);
-const appEl = $("#app"), sheetEl = $("#sheet"), camEl = $("#cam");
+const appEl = $("#app"), sheetEl = $("#sheet");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const dateKey = (d = new Date()) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(d);
 const monthKey = (d = new Date()) => dateKey(d).slice(0, 7);
@@ -227,8 +229,8 @@ function authMsg(e) {
   if (c.includes("permission-denied") || c.includes("unauthorized")) return "مش مسموح بالعملية دي. لو القراءة متسجلة قبل كده، كلّم المدير.";
   return "حصل خطأ: " + (e?.message || c || "غير معروف");
 }
-function closeSheet() { sheetEl.hidden = true; sheetEl.innerHTML = ""; document.body.style.overflow = ""; }
-function openSheet(html) { sheetEl.innerHTML = `<div class="wrap">${html}</div>`; sheetEl.hidden = false; sheetEl.scrollTop = 0; document.body.style.overflow = "hidden"; }
+function closeSheet() { stopCam(); sheetEl.hidden = true; sheetEl.innerHTML = ""; document.body.style.overflow = ""; }
+function openSheet(html) { stopCam(); sheetEl.innerHTML = `<div class="wrap">${html}</div>`; sheetEl.hidden = false; sheetEl.scrollTop = 0; document.body.style.overflow = "hidden"; }
 
 /* ---------- أيقونة التطبيق ---------- */
 (function icon() {
@@ -355,26 +357,56 @@ function getPos() {
       () => res(null), { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 });
   });
 }
-function shoot(type) {
+// التصوير من الكاميرا مباشرة داخل التطبيق: مفيش اختيار من المعرض خالص
+async function shoot(type) {
   pending = { type, posP: getPos() };   // نبدأ تحديد الموقع فورًا أثناء التصوير
-  camEl.value = ""; camEl.click();
-}
-async function loadImage(file) {
-  if ("createImageBitmap" in window) {
-    try { return await createImageBitmap(file, { imageOrientation: "from-image" }); } catch (e) {}
+  openSheet(`
+    <h2>${TYPE[type]}</h2>
+    <video id="vid" class="shot" autoplay playsinline muted></video>
+    <p class="hint">قرّب الكاميرا من العداد وخلّي الرقم واضح وكامل.</p>
+    <p class="err" id="cam-err"></p>
+    <div class="actions">
+      <button class="btn" id="cam-snap" disabled>التقاط الصورة</button>
+      <button class="btn ghost" id="cam-cancel">إلغاء</button>
+    </div>`);
+  $("#cam-cancel").onclick = () => { pending = null; closeSheet(); };
+  const err = $("#cam-err");
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    err.textContent = "المتصفح ده مش بيدعم الكاميرا. افتح التطبيق من Chrome (أندرويد) أو Safari (آيفون)."; return;
   }
-  return await new Promise((res, rej) => {
-    const img = new Image(); img.onload = () => res(img); img.onerror = rej; img.src = URL.createObjectURL(file);
-  });
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: false,
+      video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } } });
+  } catch (e) {
+    if (!$("#cam-err")) return;
+    err.textContent = e && (e.name === "NotAllowedError" || e.name === "SecurityError")
+      ? "لازم تسمح للتطبيق باستخدام الكاميرا. افتح إعدادات المتصفح/الموقع، اسمح بالكاميرا، وبعدين جرّب تاني."
+      : e && (e.name === "NotFoundError" || e.name === "OverconstrainedError") ? "مفيش كاميرا متاحة على الجهاز ده."
+      : "تعذّر تشغيل الكاميرا. اقفل أي تطبيق تاني بيستخدم الكاميرا وجرّب تاني.";
+    return;
+  }
+  const v = $("#vid");
+  if (!v || !pending) { stream.getTracks().forEach(t => t.stop()); return; }   // المندوب لغى قبل ما الكاميرا تفتح
+  camStream = stream; v.srcObject = stream;
+  try { await v.play(); } catch (e) {}
+  const snap = $("#cam-snap");
+  const ready = () => { if (v.videoWidth) snap.disabled = false; };
+  v.onloadedmetadata = ready; v.onplaying = ready; ready();
+  snap.onclick = () => {
+    if (!v.videoWidth) return;
+    const f = document.createElement("canvas"); f.width = v.videoWidth; f.height = v.videoHeight;
+    f.getContext("2d").drawImage(v, 0, 0);
+    stopCam();
+    processShot(f);
+  };
 }
-camEl.onchange = async () => {
-  const file = camEl.files && camEl.files[0];
-  if (!file || !pending) return;
+async function processShot(img) {
+  if (!pending) return;
   openSheet(`<div class="boot" style="height:60vh">جارٍ تجهيز الصورة وتحديد الموقع…</div>`);
   try {
-    const img = await loadImage(file);
     const pos = await pending.posP;
-    const w0 = img.width || img.naturalWidth, h0 = img.height || img.naturalHeight;
+    const w0 = img.width, h0 = img.height;
     const k = Math.min(1, 1400 / Math.max(w0, h0));
     const W = Math.round(w0 * k), H = Math.round(h0 * k);
     const c = document.createElement("canvas"); c.width = W; c.height = H;
@@ -384,7 +416,8 @@ camEl.onchange = async () => {
     const k2 = Math.min(1, 1024 / Math.max(W, H));
     const c2 = document.createElement("canvas"); c2.width = Math.round(W * k2); c2.height = Math.round(H * k2);
     c2.getContext("2d").drawImage(c, 0, 0, c2.width, c2.height);
-    const aiP = readOdometer(c2.toDataURL("image/jpeg", 0.8).split(",")[1]);
+    const b64 = c2.toDataURL("image/jpeg", 0.8).split(",")[1];
+    const aiP = readOdometer(b64);
     // الختم: الاسم والوقت والموقع مكتوبين على الصورة نفسها
     const now = new Date(), fs = Math.max(18, Math.round(W * 0.034)), pad = Math.round(fs * 0.7);
     const lines = [
@@ -397,12 +430,12 @@ camEl.onchange = async () => {
     x.fillStyle = "#fff"; x.font = `600 ${fs}px "IBM Plex Sans Arabic",system-ui,sans-serif`;
     x.textBaseline = "top"; x.direction = "rtl"; x.textAlign = "right";
     lines.forEach((l, i) => x.fillText(l, W - pad, H - bandH + pad + i * fs * 1.45));
-    Object.assign(pending, { canvas: c, pos, aiP, warnedFor: null, time: timeStr(now), date: dateKey(now) });
+    Object.assign(pending, { canvas: c, pos, aiP, b64, time: timeStr(now), date: dateKey(now) });
     renderReview();
   } catch (e) {
-    closeSheet(); toast("تعذّر قراءة الصورة. صوّر تاني.");
+    pending = null; closeSheet(); toast("تعذّر تجهيز الصورة. صوّر تاني.");
   }
-};
+}
 function renderReview() {
   const p = pending;
   openSheet(`
@@ -432,19 +465,14 @@ async function saveReading() {
     if (reading - today.start.reading > 1500 && !confirm(`المسافة ${fmt(reading - today.start.reading)} كم في يوم واحد. الرقم صح؟`)) return;
   }
   b.disabled = true; b.textContent = "جارٍ فحص الصورة والحفظ…"; err.textContent = "";
-  const ai = await p.aiP;
-  let aiStatus = ai.status, aiReading = ai.reading;
-  if (ai.status === "read") {
-    if (Math.abs(ai.reading - reading) <= 1) aiStatus = "match";
-    else {
-      aiStatus = "mismatch";
-      if (p.warnedFor !== reading) {   // تنبيه مرة واحدة؛ لو المندوب متأكد يضغط حفظ تاني وتتسجل "مختلف" عند المدير
-        p.warnedFor = reading;
-        err.textContent = `الرقم المكتوب (${fmt(reading)}) مختلف عن الظاهر في الصورة (${fmt(ai.reading)}). راجع الرقم وصحّحه. لو متأكد من رقمك اضغط «حفظ القراءة» مرة تانية.`;
-        b.disabled = false; b.textContent = "حفظ القراءة"; return;
-      }
-    }
-  }
+  let ai = await p.aiP;
+  if (ai.status === "unavailable") { p.aiP = readOdometer(p.b64); ai = await p.aiP; }   // محاولة تانية لو الخدمة وقعت
+  const reject = msg => { err.textContent = msg; b.disabled = false; b.textContent = "حفظ القراءة"; };
+  // الفحص إجباري: الرقم لازم يطابق الصورة، ومفيش حفظ مع اختلاف
+  if (ai.status === "unread") return reject("رقم العداد مش واضح في الصورة. اضغط «إعادة التصوير» وصوّر العداد من قريب وبإضاءة كويسة.");
+  if (ai.status === "read" && ai.reading !== reading)
+    return reject(`الرقم اللي كتبته (${fmt(reading)}) مش مطابق لرقم العداد في الصورة. راجع الصورة وصحّح الرقم، أو اضغط «إعادة التصوير».`);
+  const aiStatus = ai.status === "read" ? "match" : "unavailable", aiReading = ai.reading;
   try {
     const blob = await new Promise(r => p.canvas.toBlob(r, "image/jpeg", 0.8));
     const path = `odometer/${me.uid}/${p.date}_${p.type}.jpg`;
@@ -504,7 +532,8 @@ async function tabDay() {
     const chips = !d.start ? `<span class="chip no">لم يصوّر</span>`
       : `<span class="chip ok">بداية <span class="num">${esc(d.start.time || "")}</span></span>` +
         (d.end ? `<span class="chip ok">نهاية <span class="num">${esc(d.end.time || "")}</span></span>` : `<span class="chip wait">في انتظار النهاية</span>`) +
-        ([d.start, d.end].some(x => x && x.aiStatus === "mismatch") ? `<span class="chip no">رقم مختلف عن الصورة</span>` : "");
+        ([d.start, d.end].some(x => x && x.aiStatus === "mismatch") ? `<span class="chip no">رقم مختلف عن الصورة</span>` : "") +
+        ([d.start, d.end].some(x => x && x.aiStatus !== "match" && x.aiStatus !== "mismatch") ? `<span class="chip wait">لم تُفحص بالذكاء الاصطناعي</span>` : "");
     return `<button class="row" data-rep="${esc(r.uid)}"><div><div>${esc(r.name)} <span class="meta num">${esc(r.code)}</span></div><div>${chips}</div></div>
       <div class="km num">${km != null ? fmt(km) + " كم" : ""}</div></button>`;
   }).join("");
